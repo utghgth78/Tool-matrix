@@ -1,0 +1,46 @@
+rules_version = '2';
+
+service firebase.storage {
+  match /b/{bucket}/o {
+    function signedIn() {
+      return request.auth != null;
+    }
+
+    function isAdmin() {
+      return signedIn() && (
+        firestore.exists(/databases/(default)/documents/admins/$(request.auth.token.email.lower())) ||
+        firestore.exists(/databases/(default)/documents/admins/$(request.auth.uid))
+      );
+    }
+
+    match /tool-thumbnails/{fileName} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    match /tool-icons/{fileName} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    match /html-tools/{fileName} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    match /popups/{fileName} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    match /banners/{fileName} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    match /{allPaths=**} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+  }
+}

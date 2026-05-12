@@ -1,0 +1,66 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function signedIn() {
+      return request.auth != null;
+    }
+
+    function isAdmin() {
+      return signedIn() && (
+        exists(/databases/$(database)/documents/admins/$(request.auth.token.email.lower())) ||
+        exists(/databases/$(database)/documents/admins/$(request.auth.uid))
+      );
+    }
+
+    function safeUserCreate(userId) {
+      return signedIn()
+        && request.auth.uid == userId
+        && (!('plan' in request.resource.data) || request.resource.data.plan == 'free')
+        && !('premiumUntil' in request.resource.data);
+    }
+
+    function safeUserUpdate(userId) {
+      return signedIn()
+        && request.auth.uid == userId
+        && !request.resource.data.diff(resource.data).changedKeys().hasAny(['plan', 'premiumUntil', 'role']);
+    }
+
+    match /tools/{toolId} {
+      allow read: if true;
+      allow create, update, delete: if isAdmin();
+    }
+
+    match /categories/{categoryId} {
+      allow read: if true;
+      allow create, update, delete: if isAdmin();
+    }
+
+    match /settings/{settingId} {
+      allow read: if true;
+      allow create, update, delete: if isAdmin();
+    }
+
+    match /popups/{popupId} {
+      allow read: if true;
+      allow create, update, delete: if isAdmin();
+    }
+
+    match /admins/{adminId} {
+      allow read: if isAdmin();
+      allow create, update, delete: if isAdmin();
+    }
+
+    match /users/{userId} {
+      allow read: if isAdmin() || (signedIn() && request.auth.uid == userId);
+      allow create: if isAdmin() || safeUserCreate(userId);
+      allow update: if isAdmin() || safeUserUpdate(userId);
+      allow delete: if isAdmin();
+    }
+
+    match /memberships/{membershipId} {
+      allow read: if isAdmin() || signedIn();
+      allow create, update, delete: if isAdmin();
+    }
+  }
+}
