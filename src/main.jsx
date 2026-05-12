@@ -100,7 +100,13 @@ function isAdminEmail(email) {
 }
 
 function isAdminPath(route) {
-  return ADMIN_ROUTES.some((adminRoute) => route === adminRoute || route.startsWith(`${adminRoute}/`));
+  const fullLocation = `${window.location.pathname}${window.location.hash}`;
+  return ADMIN_ROUTES.some(
+    (adminRoute) =>
+      route === adminRoute ||
+      route.startsWith(`${adminRoute}/`) ||
+      fullLocation.includes(adminRoute)
+  );
 }
 
 function isUserDashboardPath(route) {
@@ -229,8 +235,15 @@ function App() {
       return;
     }
 
+    if (isAdminRoute && !admin) return;
+
     if (intent === "user" && !isUserDashboardPath(route)) {
       window.sessionStorage.removeItem("toolMatrixLoginIntent");
+      go("/dashboard");
+      return;
+    }
+
+    if (!intent && !isAdminRoute && route === "/" && user) {
       go("/dashboard");
     }
   }, [loading, user?.uid, user?.email, route, isAdminRoute]);
