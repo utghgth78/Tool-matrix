@@ -204,6 +204,27 @@ select option {
     repeating-linear-gradient(45deg, transparent 0, transparent 12px, rgba(255, 209, 102, 0.05) 13px, rgba(255, 209, 102, 0.05) 14px);
 }
 
+.dashboard-hero {
+  display: grid;
+  gap: 1.25rem;
+  align-items: stretch;
+  border: 1px solid rgba(0, 231, 255, 0.24);
+  border-radius: 8px;
+  background:
+    radial-gradient(circle at 12% 10%, rgba(0, 231, 255, 0.16), transparent 28%),
+    radial-gradient(circle at 90% 25%, rgba(255, 23, 63, 0.2), transparent 32%),
+    rgba(8, 1, 12, 0.76);
+  padding: clamp(1.25rem, 4vw, 2.5rem);
+  box-shadow: 0 0 28px rgba(0, 231, 255, 0.1);
+  backdrop-filter: blur(18px);
+}
+
+@media (min-width: 900px) {
+  .dashboard-hero {
+    grid-template-columns: 1fr 340px;
+  }
+}
+
 .terminal-panel {
   min-height: 150px;
   border: 1px solid rgba(0, 231, 255, 0.24);

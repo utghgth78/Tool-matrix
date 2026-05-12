@@ -77,6 +77,7 @@ import { analytics, auth, db, storage } from "./services/firebase";
 import "./styles.css";
 
 const ADMIN_ROUTES = ["/matrix-control", "/system-core", "/hidden-admin", "/admin"];
+const USER_DASHBOARD_ROUTES = ["/dashboard", "/user-dashboard"];
 const ADMIN_EMAILS = ["mdefankhan56@gmail.com"];
 const googleProvider = new GoogleAuthProvider();
 googleProvider.setCustomParameters({ prompt: "select_account" });
@@ -88,6 +89,23 @@ const DEFAULT_CATEGORIES = [
   "Utility Tools",
   "Premium Tools",
 ];
+
+function getCurrentRoute() {
+  const hashRoute = window.location.hash?.startsWith("#/") ? window.location.hash.slice(1) : "";
+  return hashRoute || window.location.pathname;
+}
+
+function isAdminEmail(email) {
+  return ADMIN_EMAILS.includes((email || "").toLowerCase());
+}
+
+function isAdminPath(route) {
+  return ADMIN_ROUTES.some((adminRoute) => route === adminRoute || route.startsWith(`${adminRoute}/`));
+}
+
+function isUserDashboardPath(route) {
+  return USER_DASHBOARD_ROUTES.includes(route);
+}
 
 function useAuthUser() {
   const [user, setUser] = useState(null);
@@ -178,17 +196,14 @@ function useAdmin(user) {
 
 function App() {
   const { user, profile, loading } = useAuthUser();
-  const getRoute = () => {
-    const hashRoute = window.location.hash?.startsWith("#/") ? window.location.hash.slice(1) : "";
-    return hashRoute || window.location.pathname;
-  };
-  const [route, setRoute] = useState(getRoute);
+  const [route, setRoute] = useState(getCurrentRoute);
   const [loginOpen, setLoginOpen] = useState(false);
   const [premiumLock, setPremiumLock] = useState(null);
-  const isAdminRoute = ADMIN_ROUTES.includes(route);
+  const isAdminRoute = isAdminPath(route);
+  const isUserDashboardRoute = isUserDashboardPath(route);
 
   useEffect(() => {
-    const sync = () => setRoute(getRoute());
+    const sync = () => setRoute(getCurrentRoute());
     window.addEventListener("popstate", sync);
     window.addEventListener("hashchange", sync);
     return () => {
@@ -203,6 +218,23 @@ function App() {
     window.scrollTo({ top: 0, behavior: "smooth" });
   };
 
+  useEffect(() => {
+    if (loading || !user) return;
+    const intent = window.sessionStorage.getItem("toolMatrixLoginIntent");
+    const admin = isAdminEmail(user.email);
+
+    if ((intent === "admin" || isAdminRoute) && admin && route !== "/matrix-control/dashboard") {
+      window.sessionStorage.removeItem("toolMatrixLoginIntent");
+      go("/matrix-control/dashboard");
+      return;
+    }
+
+    if (intent === "user" && !isUserDashboardPath(route)) {
+      window.sessionStorage.removeItem("toolMatrixLoginIntent");
+      go("/dashboard");
+    }
+  }, [loading, user?.uid, user?.email, route, isAdminRoute]);
+
   if (loading) return <BootScreen />;
 
   return (
@@ -212,7 +244,16 @@ function App() {
       <MouseGlow />
       <AnimatePresence mode="wait">
         {isAdminRoute ? (
-          <AdminPortal key="admin" user={user} go={go} openLogin={() => setLoginOpen(true)} />
+          <AdminPortal key="admin" user={user} route={route} go={go} />
+        ) : isUserDashboardRoute ? (
+          <UserDashboardPortal
+            key="user-dashboard"
+            user={user}
+            profile={profile}
+            go={go}
+            openLogin={() => setLoginOpen(true)}
+            openPremiumLock={setPremiumLock}
+          />
         ) : (
           <PublicSite
             key="public"
@@ -224,7 +265,7 @@ function App() {
           />
         )}
       </AnimatePresence>
-      <LoginModal open={loginOpen} onClose={() => setLoginOpen(false)} />
+      <LoginModal open={loginOpen} onClose={() => setLoginOpen(false)} onSuccess={() => go("/dashboard")} />
       <PremiumModal tool={premiumLock} onClose={() => setPremiumLock(null)} go={go} />
     </div>
   );
@@ -280,7 +321,7 @@ function PublicSite({ user, profile, go, openLogin, openPremiumLock }) {
     }
     if (analytics) logEvent(analytics, "tool_click", { tool_id: tool.id, tool_name: tool.toolName });
     await updateDoc(doc(db, "tools", tool.id), { clicks: increment(1) }).catch(() => {});
-    const target = tool.toolType === "HTML Tool" ? tool.htmlFileURL : tool.externalURL;
+    const target = tool.toolType === "HTML Tool" ? tool.htmlFileURL || tool.htmlURL : tool.externalURL;
     if (target) window.open(target, tool.openNewTab === false ? "_self" : "_blank", "noopener,noreferrer");
   };
 
@@ -349,6 +390,150 @@ function PublicSite({ user, profile, go, openLogin, openPremiumLock }) {
       </main>
       <Footer settings={settings} />
       <PopupAnnouncement popup={popups[0]} />
+    </motion.div>
+  );
+}
+
+function UserDashboardPortal({ user, profile, go, openLogin, openPremiumLock }) {
+  if (!user) {
+    return (
+      <AccessGate
+        title="User Login Required"
+        bangla="ড্যাশবোর্ড দেখতে আগে login করুন"
+        action={openLogin}
+        actionText="Login To Dashboard"
+      />
+    );
+  }
+
+  return <UserDashboard user={user} profile={profile} go={go} openPremiumLock={openPremiumLock} />;
+}
+
+function UserDashboard({ user, profile, go, openPremiumLock }) {
+  const { items: tools, loading } = useRealtimeCollection("tools", [orderBy("createdAt", "desc")]);
+  const { items: categoryDocs } = useRealtimeCollection("categories", [orderBy("name", "asc")]);
+  const [queryText, setQueryText] = useState("");
+  const [activeCategory, setActiveCategory] = useState("All");
+  const isPremiumUser = profile?.plan === "premium";
+  const categories = ["All", ...new Set([...DEFAULT_CATEGORIES, ...categoryDocs.map((cat) => cat.name).filter(Boolean)])];
+  const filteredTools = tools.filter((tool) => {
+    const searchable = [tool.toolName, tool.description, tool.category].join(" ").toLowerCase();
+    const matchesQuery = searchable.includes(queryText.toLowerCase());
+    const matchesCategory = activeCategory === "All" || tool.category === activeCategory;
+    return matchesQuery && matchesCategory;
+  });
+  const featured = filteredTools.filter((tool) => tool.featured).slice(0, 6);
+  const latest = filteredTools.slice(0, 9);
+  const freeTools = filteredTools.filter((tool) => !tool.premium);
+  const premiumTools = filteredTools.filter((tool) => tool.premium);
+
+  const openTool = async (tool) => {
+    if (tool.premium && !isPremiumUser) {
+      openPremiumLock(tool);
+      return;
+    }
+    if (analytics) logEvent(analytics, "tool_click", { tool_id: tool.id, tool_name: tool.toolName });
+    await updateDoc(doc(db, "tools", tool.id), { clicks: increment(1) }).catch(() => {});
+    const target = tool.toolType === "HTML Tool" ? tool.htmlFileURL || tool.htmlURL : tool.externalURL;
+    if (target) window.open(target, tool.openNewTab === false ? "_self" : "_blank", "noopener,noreferrer");
+  };
+
+  return (
+    <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="min-h-screen px-4 pb-16 pt-6">
+      <div className="mx-auto max-w-7xl">
+        <div className="mb-5 flex flex-wrap items-center justify-between gap-4">
+          <button onClick={() => go("/")} className="font-display text-2xl font-black">
+            TOOL <span className="text-matrix-red">MATRIX</span>
+          </button>
+          <div className="flex flex-wrap gap-3">
+            {isAdminEmail(user.email) && (
+              <button onClick={() => go("/matrix-control/dashboard")} className="cyber-button small gold">
+                <ShieldCheck size={16} /> Admin Panel
+              </button>
+            )}
+            <button onClick={() => signOut(auth).then(() => go("/"))} className="cyber-button small">
+              <LogOut size={16} /> Logout
+            </button>
+          </div>
+        </div>
+
+        <section className="dashboard-hero">
+          <div>
+            <p className="mb-3 inline-flex items-center gap-2 rounded-full border border-matrix-blue/40 bg-matrix-blue/10 px-4 py-2 text-matrix-blue">
+              <User size={16} /> User Dashboard / ইউজার ড্যাশবোর্ড
+            </p>
+            <h1 className="font-display text-4xl font-black md:text-6xl">Welcome, {profile?.name || user.displayName || "Matrix User"}</h1>
+            <p className="mt-3 max-w-2xl text-lg text-white/65">Uploaded tools realtime দেখা যাবে. Free tools open করুন, premium tools unlock করতে upgrade করুন.</p>
+          </div>
+          <div className="hologram-card p-5">
+            <p className="text-sm text-white/50">Membership Status</p>
+            <p className={`font-display text-3xl ${isPremiumUser ? "text-matrix-gold" : "text-matrix-blue"}`}>{isPremiumUser ? "PREMIUM MATRIX" : "FREE ACCESS"}</p>
+            <p className="text-white/55">{isPremiumUser ? `Expiry: ${profile?.premiumUntil || "Active"}` : "Basic access / Limited tools"}</p>
+            {!isPremiumUser && (
+              <a href="#premium-tools" className="cyber-button gold mt-4 w-full justify-center">
+                <Crown size={17} /> Upgrade Now
+              </a>
+            )}
+          </div>
+        </section>
+
+        <SearchPanel
+          queryText={queryText}
+          setQueryText={setQueryText}
+          activeCategory={activeCategory}
+          setActiveCategory={setActiveCategory}
+          categories={categories}
+        />
+
+        <ToolsSection
+          sectionId="featured-dashboard"
+          title="Featured Tools"
+          bangla="নির্বাচিত টুলস"
+          tools={featured}
+          loading={loading}
+          emptyEnglish="No featured tools yet"
+          emptyBangla="অ্যাডমিন feature করলে এখানে দেখাবে"
+          onOpen={openTool}
+          isPremiumUser={isPremiumUser}
+          compact
+        />
+        <ToolsSection
+          sectionId="latest-uploads"
+          title="Latest Uploads"
+          bangla="সর্বশেষ আপলোড"
+          tools={latest}
+          loading={loading}
+          emptyEnglish="No Tools Available"
+          emptyBangla="এখনো কোনো টুল আপলোড করা হয়নি"
+          onOpen={openTool}
+          isPremiumUser={isPremiumUser}
+        />
+        <ToolsSection
+          sectionId="free-dashboard-tools"
+          title="Free Tools"
+          bangla="ফ্রি ব্যবহারযোগ্য টুলস"
+          tools={freeTools}
+          loading={loading}
+          emptyEnglish="No free tools yet"
+          emptyBangla="ফ্রি টুল আপলোডের অপেক্ষায়"
+          onOpen={openTool}
+          isPremiumUser={isPremiumUser}
+          compact
+        />
+        <ToolsSection
+          sectionId="premium-tools"
+          title="Premium Tools"
+          bangla="লক করা প্রিমিয়াম টুলস"
+          tools={premiumTools}
+          loading={loading}
+          emptyEnglish="No premium tools yet"
+          emptyBangla="প্রিমিয়াম টুল আপলোডের অপেক্ষায়"
+          onOpen={openTool}
+          isPremiumUser={isPremiumUser}
+          compact
+        />
+        <CategoryGrid categories={categories.filter((cat) => cat !== "All")} />
+      </div>
     </motion.div>
   );
 }
@@ -805,7 +990,7 @@ function SectionTitle({ icon: Icon, title, bangla }) {
   );
 }
 
-function LoginModal({ open, onClose }) {
+function LoginModal({ open, onClose, onSuccess }) {
   const [mode, setMode] = useState("login");
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
@@ -825,6 +1010,7 @@ function LoginModal({ open, onClose }) {
   const googleLogin = async () => {
     setBusy(true);
     try {
+      window.sessionStorage.setItem("toolMatrixLoginIntent", "user");
       await signInWithRedirect(auth, googleProvider);
     } catch (error) {
       setMessage(error.message);
@@ -857,6 +1043,7 @@ function LoginModal({ open, onClose }) {
         await signInWithEmailAndPassword(auth, email, password);
       }
       onClose();
+      onSuccess?.();
     } catch (error) {
       setMessage(error.message);
     } finally {
@@ -948,15 +1135,32 @@ function PopupAnnouncement({ popup }) {
   );
 }
 
-function AdminPortal({ user, go, openLogin }) {
+function AdminPortal({ user, route, go }) {
   const { allowed, checking } = useAdmin(user);
   const adminGoogleLogin = async () => {
+    window.sessionStorage.setItem("toolMatrixLoginIntent", "admin");
     await signInWithRedirect(auth, googleProvider);
   };
-  if (!user) return <AccessGate title="Admin Gmail Required" bangla="শুধু Google login দিয়ে admin panel খুলবে" action={adminGoogleLogin} actionText="Login with Google" />;
+  if (!user) return <AdminLoginPanel action={adminGoogleLogin} />;
   if (checking) return <BootScreen />;
   if (!allowed) return <AccessDenied go={go} />;
   return <AdminDashboard user={user} go={go} />;
+}
+
+function AdminLoginPanel({ action }) {
+  return (
+    <div className="grid min-h-screen place-items-center px-4">
+      <div className="hologram-card max-w-xl p-8 text-center">
+        <ShieldCheck className="mx-auto mb-5 text-matrix-red" size={66} />
+        <h1 className="font-display text-4xl">Admin Matrix Login</h1>
+        <p className="mt-3 text-white/65">Hidden admin control center. শুধু authorized Gmail দিয়ে access হবে.</p>
+        <p className="mt-3 rounded border border-matrix-blue/30 bg-matrix-blue/10 p-3 text-matrix-blue">Allowed admin: mdefankhan56@gmail.com</p>
+        <button onClick={action} className="cyber-button gold mx-auto mt-6">
+          <Mail size={18} /> Continue With Admin Gmail
+        </button>
+      </div>
+    </div>
+  );
 }
 
 function AccessGate({ title, bangla, action, actionText }) {
@@ -1140,6 +1344,7 @@ function ToolUpload({ user, categories, editing, onDone }) {
         thumbnailURL,
         iconURL,
         htmlFileURL,
+        htmlURL: htmlFileURL,
         uploadedBy: user.email,
         updatedAt: serverTimestamp(),
       };
@@ -1242,11 +1447,19 @@ function ManageTools({ tools, categories, user }) {
 
 function CategoryManager({ categories }) {
   const [name, setName] = useState("");
+  const [editingId, setEditingId] = useState("");
+  const [editingName, setEditingName] = useState("");
   const add = async (event) => {
     event.preventDefault();
     if (!name.trim()) return;
     await addDoc(collection(db, "categories"), { name: name.trim(), createdAt: serverTimestamp() });
     setName("");
+  };
+  const saveEdit = async (cat) => {
+    if (!editingName.trim()) return;
+    await updateDoc(doc(db, "categories", cat.id), { name: editingName.trim(), updatedAt: serverTimestamp() });
+    setEditingId("");
+    setEditingName("");
   };
   return (
     <div className="hologram-card p-5">
@@ -1258,8 +1471,19 @@ function CategoryManager({ categories }) {
       <div className="mt-5 grid gap-3 md:grid-cols-2">
         {categories.map((cat) => (
           <div className="flex items-center justify-between rounded border border-white/10 bg-white/5 p-3" key={cat.id}>
-            <span>{cat.name}</span>
-            <button onClick={() => deleteDoc(doc(db, "categories", cat.id))} className="icon-button danger"><Trash2 size={16} /></button>
+            {editingId === cat.id ? (
+              <input className="cyber-input mr-3" value={editingName} onChange={(e) => setEditingName(e.target.value)} />
+            ) : (
+              <span>{cat.name}</span>
+            )}
+            <div className="flex gap-2">
+              {editingId === cat.id ? (
+                <button onClick={() => saveEdit(cat)} className="icon-button"><Check size={16} /></button>
+              ) : (
+                <button onClick={() => { setEditingId(cat.id); setEditingName(cat.name || ""); }} className="icon-button"><Pencil size={16} /></button>
+              )}
+              <button onClick={() => deleteDoc(doc(db, "categories", cat.id))} className="icon-button danger"><Trash2 size={16} /></button>
+            </div>
           </div>
         ))}
       </div>
@@ -1268,10 +1492,16 @@ function CategoryManager({ categories }) {
 }
 
 function MembershipManager({ users }) {
+  const [expiryByUser, setExpiryByUser] = useState({});
   const makePremium = async (user) => {
     const expiry = new Date();
     expiry.setMonth(expiry.getMonth() + 3);
     await setDoc(doc(db, "users", user.uid || user.id), { plan: "premium", premiumUntil: expiry.toISOString() }, { merge: true });
+  };
+  const setCustomExpiry = async (user) => {
+    const expiry = expiryByUser[user.id];
+    if (!expiry) return;
+    await setDoc(doc(db, "users", user.uid || user.id), { plan: "premium", premiumUntil: new Date(expiry).toISOString() }, { merge: true });
   };
   const removePremium = async (user) => setDoc(doc(db, "users", user.uid || user.id), { plan: "free", premiumUntil: null }, { merge: true });
   return (
@@ -1283,9 +1513,19 @@ function MembershipManager({ users }) {
           <tbody>
             {users.map((item) => (
               <tr className="border-t border-white/10" key={item.id}>
-                <td className="py-3">{item.name || "Matrix User"}</td><td>{item.email}</td><td>{item.plan || "free"}</td><td>{item.premiumUntil || "-"}</td>
+                <td className="py-3">{item.name || "Matrix User"}</td><td>{item.email}</td><td>{item.plan || "free"}</td>
+                <td>
+                  <input
+                    className="cyber-input min-w-48"
+                    type="date"
+                    value={expiryByUser[item.id] || ""}
+                    onChange={(e) => setExpiryByUser((prev) => ({ ...prev, [item.id]: e.target.value }))}
+                    title={item.premiumUntil || "Set expiry date"}
+                  />
+                </td>
                 <td className="flex gap-2 py-2">
                   <button onClick={() => makePremium(item)} className="cyber-button small gold">Upgrade</button>
+                  <button onClick={() => setCustomExpiry(item)} className="cyber-button small">Set Expiry</button>
                   <button onClick={() => removePremium(item)} className="cyber-button small blue">Free</button>
                 </td>
               </tr>

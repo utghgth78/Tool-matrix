@@ -5,6 +5,8 @@ Futuristic cyberpunk Tool Upload & Sharing Platform built with React, Vite, Tail
 ## Features
 
 - Dynamic tool upload and realtime public dashboard with Firestore listeners
+- User login redirects to `/dashboard`
+- Admin login redirects to `/matrix-control/dashboard`
 - Free tools hub for traffic and engagement
 - Premium Matrix marketplace flow with locked previews, upgrade popups, VIP banners, and members-only area
 - Hidden admin panel routes: `/matrix-control`, `/system-core`, `/hidden-admin`
@@ -37,13 +39,25 @@ TOOL MATRIX is designed as a free plus premium tool sharing platform:
 
 ## First Admin Setup
 
-Create one document in Firestore manually once:
+Admin email is also hardcoded in the app and rules:
+
+`mdefankhan56@gmail.com`
+
+Optional Firestore admin document:
 
 - Collection: `admins`
 - Document ID: your admin Gmail in lowercase, for example `admin@example.com`
 - Fields: `{ "email": "admin@example.com", "role": "admin" }`
 
 After that, visit `/matrix-control` and sign in with the same Google account.
+
+## Main Routes
+
+- Homepage: `/`
+- User dashboard: `/dashboard`
+- Admin login: `/matrix-control`
+- Admin dashboard: `/matrix-control/dashboard`
+- Hash fallback: `/#/matrix-control`
 
 ## Local Development
 
