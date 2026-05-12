@@ -79,6 +79,7 @@ import "./styles.css";
 const ADMIN_ROUTES = ["/matrix-control", "/system-core", "/hidden-admin", "/admin"];
 const USER_DASHBOARD_ROUTES = ["/dashboard", "/user-dashboard"];
 const ADMIN_EMAILS = ["mdefankhan56@gmail.com"];
+const BUILD_VERSION = "LOGIN-REDIRECT-DASHBOARD-v2";
 const googleProvider = new GoogleAuthProvider();
 googleProvider.setCustomParameters({ prompt: "select_account" });
 const DEFAULT_CATEGORIES = [
@@ -1073,6 +1074,7 @@ function LoginModal({ open, onClose, onSuccess }) {
               <div>
                 <h2 className="font-display text-2xl">{mode === "register" ? "Create Account" : mode === "forgot" ? "Reset Password" : "Matrix Login"}</h2>
                 <p className="text-white/55">Google redirect অথবা email/password ব্যবহার করুন</p>
+                <p className="mt-1 text-xs text-matrix-blue">{BUILD_VERSION}</p>
               </div>
               <button onClick={onClose}>
                 <X />
@@ -1651,6 +1653,7 @@ function Footer({ settings }) {
         <p className="font-display text-white">TOOL <span className="text-matrix-red">MATRIX</span></p>
         <p>{settings.footer || "সকল প্রয়োজনীয় টুলস এক জায়গায়"} / Ultimate AI & Utility Tools Platform</p>
         <p>Free tools, premium access, realtime Firebase marketplace</p>
+        <p className="text-xs text-matrix-blue">{BUILD_VERSION}</p>
       </div>
     </footer>
   );
