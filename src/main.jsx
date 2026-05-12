@@ -76,7 +76,8 @@ import { logEvent } from "firebase/analytics";
 import { analytics, auth, db, storage } from "./services/firebase";
 import "./styles.css";
 
-const ADMIN_ROUTES = ["/matrix-control", "/system-core", "/hidden-admin"];
+const ADMIN_ROUTES = ["/matrix-control", "/system-core", "/hidden-admin", "/admin"];
+const ADMIN_EMAILS = ["mdefankhan56@gmail.com"];
 const googleProvider = new GoogleAuthProvider();
 googleProvider.setCustomParameters({ prompt: "select_account" });
 const DEFAULT_CATEGORIES = [
@@ -157,10 +158,11 @@ function useAdmin(user) {
         setChecking(false);
         return;
       }
-      const direct = await getDoc(doc(db, "admins", user.email.toLowerCase()));
+      const email = user.email.toLowerCase();
+      const direct = await getDoc(doc(db, "admins", email));
       const byUid = await getDoc(doc(db, "admins", user.uid));
       if (live) {
-        setAllowed(direct.exists() || byUid.exists());
+        setAllowed(ADMIN_EMAILS.includes(email) || direct.exists() || byUid.exists());
         setChecking(false);
       }
     }
@@ -176,15 +178,23 @@ function useAdmin(user) {
 
 function App() {
   const { user, profile, loading } = useAuthUser();
-  const [route, setRoute] = useState(window.location.pathname);
+  const getRoute = () => {
+    const hashRoute = window.location.hash?.startsWith("#/") ? window.location.hash.slice(1) : "";
+    return hashRoute || window.location.pathname;
+  };
+  const [route, setRoute] = useState(getRoute);
   const [loginOpen, setLoginOpen] = useState(false);
   const [premiumLock, setPremiumLock] = useState(null);
   const isAdminRoute = ADMIN_ROUTES.includes(route);
 
   useEffect(() => {
-    const sync = () => setRoute(window.location.pathname);
+    const sync = () => setRoute(getRoute());
     window.addEventListener("popstate", sync);
-    return () => window.removeEventListener("popstate", sync);
+    window.addEventListener("hashchange", sync);
+    return () => {
+      window.removeEventListener("popstate", sync);
+      window.removeEventListener("hashchange", sync);
+    };
   }, []);
 
   const go = (path) => {
