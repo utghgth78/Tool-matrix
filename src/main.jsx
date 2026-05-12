@@ -1,4 +1,4 @@
-import React, { Suspense, lazy, useEffect, useMemo, useState } from "react";
+import React, { useEffect, useState } from "react";
 import { createRoot } from "react-dom/client";
 import { AnimatePresence, motion } from "framer-motion";
 import {
@@ -8,7 +8,6 @@ import {
   Boxes,
   BrainCircuit,
   Check,
-  ChevronRight,
   Cloud,
   Code2,
   Crown,
@@ -20,8 +19,6 @@ import {
   Gamepad2,
   Gauge,
   Gem,
-  Github,
-  Globe2,
   Grid3X3,
   ImagePlus,
   KeyRound,
@@ -48,10 +45,9 @@ import {
   Zap,
 } from "lucide-react";
 import {
-  EmailAuthProvider,
   GoogleAuthProvider,
   createUserWithEmailAndPassword,
-  reauthenticateWithPopup,
+  getRedirectResult,
   sendPasswordResetEmail,
   signInWithEmailAndPassword,
   signInWithRedirect,
@@ -98,6 +94,10 @@ function useAuthUser() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    getRedirectResult(auth).catch((error) => {
+      window.sessionStorage.setItem("toolMatrixAuthError", error.message);
+    });
+
     const unsub = auth.onAuthStateChanged(async (current) => {
       setUser(current);
       if (current) {
@@ -803,6 +803,15 @@ function LoginModal({ open, onClose }) {
   const [message, setMessage] = useState("");
   const [busy, setBusy] = useState(false);
 
+  useEffect(() => {
+    if (!open) return;
+    const redirectError = window.sessionStorage.getItem("toolMatrixAuthError");
+    if (redirectError) {
+      setMessage(redirectError);
+      window.sessionStorage.removeItem("toolMatrixAuthError");
+    }
+  }, [open]);
+
   const googleLogin = async () => {
     setBusy(true);
     try {
@@ -853,7 +862,7 @@ function LoginModal({ open, onClose }) {
             <div className="mb-6 flex items-center justify-between">
               <div>
                 <h2 className="font-display text-2xl">{mode === "register" ? "Create Account" : mode === "forgot" ? "Reset Password" : "Matrix Login"}</h2>
-                <p className="text-white/55">Gmail popup অথবা email/password ব্যবহার করুন</p>
+                <p className="text-white/55">Google redirect অথবা email/password ব্যবহার করুন</p>
               </div>
               <button onClick={onClose}>
                 <X />
