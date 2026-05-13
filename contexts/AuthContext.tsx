@@ -6,7 +6,7 @@ import {
   GoogleAuthProvider,
   onAuthStateChanged,
   signInWithEmailAndPassword,
-  signInWithPopup,
+  signInWithRedirect,
   signOut,
   updateProfile
 } from "firebase/auth";
@@ -116,7 +116,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       signInWithGoogle: async () => {
         const provider = new GoogleAuthProvider();
         provider.setCustomParameters({ prompt: "select_account" });
-        await signInWithPopup(auth, provider);
+        await signInWithRedirect(auth, provider);
       },
       signUp: async (email, password, displayName) => {
         const credential = await createUserWithEmailAndPassword(auth, email.trim(), password);
