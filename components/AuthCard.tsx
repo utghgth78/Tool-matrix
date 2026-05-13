@@ -94,6 +94,13 @@ export function AuthCard({ adminMode = false }: AuthCardProps) {
             <LanguageToggle />
           </div>
 
+          <NeonButton type="button" disabled={busy} onClick={handleGoogleLogin} className="mb-5 w-full py-3">
+            <Chrome className="h-4 w-4" aria-hidden />
+            {t.continueWithGmail}
+          </NeonButton>
+
+          {error && <p className="mb-5 rounded-lg border border-red-400/40 bg-red-500/10 p-3 text-sm text-red-100">{error}</p>}
+
           {!adminMode && (
             <div className="mb-5 grid grid-cols-2 rounded-xl border border-white/10 bg-white/5 p-1">
               <button
@@ -117,7 +124,8 @@ export function AuthCard({ adminMode = false }: AuthCardProps) {
             </div>
           )}
 
-          <div className="space-y-4">
+          {!adminMode && (
+            <div className="space-y-4">
             {mode === "signup" && !adminMode && (
               <label className="block">
                 <span className="mb-2 flex items-center gap-2 text-sm font-semibold text-white/75">
@@ -163,23 +171,17 @@ export function AuthCard({ adminMode = false }: AuthCardProps) {
               />
             </label>
 
-            {error && <p className="rounded-lg border border-red-400/40 bg-red-500/10 p-3 text-sm text-red-100">{error}</p>}
-
-            <NeonButton type="submit" disabled={busy} className="w-full py-3">
-              {busy ? t.loading : mode === "signin" || adminMode ? t.signIn : t.signUp}
-            </NeonButton>
-
-            <div className="flex items-center gap-3">
-              <span className="h-px flex-1 bg-white/10" />
-              <span className="text-xs font-bold uppercase tracking-[0.2em] text-white/40">or</span>
-              <span className="h-px flex-1 bg-white/10" />
+              <NeonButton type="submit" disabled={busy} className="w-full py-3">
+                {busy ? t.loading : mode === "signin" || adminMode ? t.signIn : t.signUp}
+              </NeonButton>
             </div>
+          )}
 
-            <NeonButton type="button" variant="ghost" disabled={busy} onClick={handleGoogleLogin} className="w-full py-3">
-              <Chrome className="h-4 w-4" aria-hidden />
-              Continue with Gmail
-            </NeonButton>
-          </div>
+          {adminMode && (
+            <p className="rounded-xl border border-matrix-cyan/25 bg-matrix-cyan/10 p-4 text-sm leading-6 text-cyan-50">
+              Select <strong>{email}</strong> on the Google screen to open the secure admin panel.
+            </p>
+          )}
         </form>
       </section>
     </main>
