@@ -1,6 +1,7 @@
 "use client";
 
 import { FormEvent, useState } from "react";
+import { useRouter } from "next/navigation";
 import { Chrome, LockKeyhole, Mail, Sparkles, UserRound } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useLanguage } from "@/contexts/LanguageContext";
@@ -12,6 +13,7 @@ interface AuthCardProps {
 }
 
 export function AuthCard({ adminMode = false }: AuthCardProps) {
+  const router = useRouter();
   const { authError, clearAuthError, signIn, signInWithGoogle, signUp } = useAuth();
   const { t } = useLanguage();
   const [mode, setMode] = useState<"signin" | "signup">("signin");
@@ -20,6 +22,12 @@ export function AuthCard({ adminMode = false }: AuthCardProps) {
   const [password, setPassword] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
+  const nextPath = adminMode ? "/admin" : "/";
+
+  const goNext = () => {
+    router.replace(nextPath);
+    router.refresh();
+  };
 
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -33,6 +41,7 @@ export function AuthCard({ adminMode = false }: AuthCardProps) {
       } else {
         await signIn(email, password);
       }
+      goNext();
     } catch (caught) {
       const message = caught instanceof Error ? caught.message : "Authentication failed";
       setError(message.replace("Firebase: ", ""));
@@ -48,6 +57,7 @@ export function AuthCard({ adminMode = false }: AuthCardProps) {
 
     try {
       await signInWithGoogle();
+      goNext();
     } catch (caught) {
       const message = caught instanceof Error ? caught.message : "Google login failed";
       setError(message.replace("Firebase: ", ""));
@@ -188,6 +198,8 @@ export function AuthCard({ adminMode = false }: AuthCardProps) {
               Select <strong>{email}</strong> on the Google screen to open the secure admin panel.
             </p>
           )}
+
+          <p className="mt-4 text-xs leading-5 text-white/45">{t.loginHelp}</p>
         </form>
       </section>
     </main>

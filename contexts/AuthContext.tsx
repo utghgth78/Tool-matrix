@@ -42,9 +42,11 @@ function isAdminEmail(email?: string | null) {
 function getAuthErrorMessage(error: unknown) {
   const code = typeof error === "object" && error !== null && "code" in error ? String(error.code) : "";
   const message = error instanceof Error ? error.message.replace("Firebase: ", "") : "Login failed. Please try again.";
+  const domain =
+    typeof window !== "undefined" ? window.location.hostname : "your Vercel domain";
 
   if (code.includes("unauthorized-domain")) {
-    return "This website domain is not authorized in Firebase. Add tool-matrix-25p8.vercel.app in Firebase Authentication settings.";
+    return `This website domain is not authorized in Firebase. Add ${domain} in Firebase Authentication settings.`;
   }
 
   if (code.includes("operation-not-allowed")) {
@@ -120,11 +122,20 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   useEffect(() => {
-    setPersistence(auth, browserLocalPersistence).catch(() => undefined);
+    let cancelled = false;
 
-    getRedirectResult(auth).catch((error) => {
-      setAuthError(getAuthErrorMessage(error));
-    });
+    async function prepareAuth() {
+      try {
+        await setPersistence(auth, browserLocalPersistence);
+        await getRedirectResult(auth);
+      } catch (error) {
+        if (!cancelled) {
+          setAuthError(getAuthErrorMessage(error));
+        }
+      }
+    }
+
+    prepareAuth();
 
     const unsubscribe = onAuthStateChanged(auth, async (currentUser) => {
       setLoading(true);
@@ -156,7 +167,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
     });
 
-    return unsubscribe;
+    return () => {
+      cancelled = true;
+      unsubscribe();
+    };
   }, []);
 
   const value = useMemo<AuthContextValue>(
@@ -175,6 +189,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setAuthError("");
         const provider = new GoogleAuthProvider();
         provider.setCustomParameters({ prompt: "select_account" });
+
         try {
           await signInWithPopup(auth, provider);
         } catch (error) {
