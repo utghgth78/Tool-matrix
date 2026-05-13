@@ -32,7 +32,7 @@ export function ToolCard({ tool, profile }: ToolCardProps) {
       return;
     }
 
-    await registerUse();
+    registerUse().catch(() => undefined);
 
     if (tool.type === "snippet" && !tool.redirectOnClick) {
       setExpanded((value) => !value);

@@ -12,7 +12,7 @@ interface AuthCardProps {
 }
 
 export function AuthCard({ adminMode = false }: AuthCardProps) {
-  const { signIn, signInWithGoogle, signUp } = useAuth();
+  const { authError, clearAuthError, signIn, signInWithGoogle, signUp } = useAuth();
   const { t } = useLanguage();
   const [mode, setMode] = useState<"signin" | "signup">("signin");
   const [displayName, setDisplayName] = useState("");
@@ -25,6 +25,7 @@ export function AuthCard({ adminMode = false }: AuthCardProps) {
     event.preventDefault();
     setBusy(true);
     setError("");
+    clearAuthError();
 
     try {
       if (mode === "signup" && !adminMode) {
@@ -43,6 +44,7 @@ export function AuthCard({ adminMode = false }: AuthCardProps) {
   const handleGoogleLogin = async () => {
     setBusy(true);
     setError("");
+    clearAuthError();
 
     try {
       await signInWithGoogle();
@@ -99,7 +101,11 @@ export function AuthCard({ adminMode = false }: AuthCardProps) {
             {t.continueWithGmail}
           </NeonButton>
 
-          {error && <p className="mb-5 rounded-lg border border-red-400/40 bg-red-500/10 p-3 text-sm text-red-100">{error}</p>}
+          {(error || authError) && (
+            <p className="mb-5 rounded-lg border border-red-400/40 bg-red-500/10 p-3 text-sm text-red-100">
+              {error || authError}
+            </p>
+          )}
 
           {!adminMode && (
             <div className="mb-5 grid grid-cols-2 rounded-xl border border-white/10 bg-white/5 p-1">
@@ -126,50 +132,50 @@ export function AuthCard({ adminMode = false }: AuthCardProps) {
 
           {!adminMode && (
             <div className="space-y-4">
-            {mode === "signup" && !adminMode && (
+              {mode === "signup" && !adminMode && (
+                <label className="block">
+                  <span className="mb-2 flex items-center gap-2 text-sm font-semibold text-white/75">
+                    <UserRound className="h-4 w-4 text-matrix-cyan" aria-hidden />
+                    {t.name}
+                  </span>
+                  <input
+                    value={displayName}
+                    onChange={(event) => setDisplayName(event.target.value)}
+                    required
+                    className="w-full rounded-xl border border-white/10 bg-black/30 px-4 py-3 text-white outline-none transition focus:border-matrix-cyan focus:shadow-cyan"
+                  />
+                </label>
+              )}
+
               <label className="block">
                 <span className="mb-2 flex items-center gap-2 text-sm font-semibold text-white/75">
-                  <UserRound className="h-4 w-4 text-matrix-cyan" aria-hidden />
-                  {t.name}
+                  <Mail className="h-4 w-4 text-matrix-cyan" aria-hidden />
+                  {t.email}
                 </span>
                 <input
-                  value={displayName}
-                  onChange={(event) => setDisplayName(event.target.value)}
+                  type="email"
+                  value={email}
+                  onChange={(event) => setEmail(event.target.value)}
                   required
+                  readOnly={adminMode}
+                  className="w-full rounded-xl border border-white/10 bg-black/30 px-4 py-3 text-white outline-none transition focus:border-matrix-cyan focus:shadow-cyan read-only:text-white/70"
+                />
+              </label>
+
+              <label className="block">
+                <span className="mb-2 flex items-center gap-2 text-sm font-semibold text-white/75">
+                  <LockKeyhole className="h-4 w-4 text-matrix-cyan" aria-hidden />
+                  {t.password}
+                </span>
+                <input
+                  type="password"
+                  value={password}
+                  onChange={(event) => setPassword(event.target.value)}
+                  required
+                  minLength={6}
                   className="w-full rounded-xl border border-white/10 bg-black/30 px-4 py-3 text-white outline-none transition focus:border-matrix-cyan focus:shadow-cyan"
                 />
               </label>
-            )}
-
-            <label className="block">
-              <span className="mb-2 flex items-center gap-2 text-sm font-semibold text-white/75">
-                <Mail className="h-4 w-4 text-matrix-cyan" aria-hidden />
-                {t.email}
-              </span>
-              <input
-                type="email"
-                value={email}
-                onChange={(event) => setEmail(event.target.value)}
-                required
-                readOnly={adminMode}
-                className="w-full rounded-xl border border-white/10 bg-black/30 px-4 py-3 text-white outline-none transition focus:border-matrix-cyan focus:shadow-cyan read-only:text-white/70"
-              />
-            </label>
-
-            <label className="block">
-              <span className="mb-2 flex items-center gap-2 text-sm font-semibold text-white/75">
-                <LockKeyhole className="h-4 w-4 text-matrix-cyan" aria-hidden />
-                {t.password}
-              </span>
-              <input
-                type="password"
-                value={password}
-                onChange={(event) => setPassword(event.target.value)}
-                required
-                minLength={6}
-                className="w-full rounded-xl border border-white/10 bg-black/30 px-4 py-3 text-white outline-none transition focus:border-matrix-cyan focus:shadow-cyan"
-              />
-            </label>
 
               <NeonButton type="submit" disabled={busy} className="w-full py-3">
                 {busy ? t.loading : mode === "signin" || adminMode ? t.signIn : t.signUp}

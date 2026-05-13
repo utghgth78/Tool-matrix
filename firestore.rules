@@ -7,7 +7,9 @@ service cloud.firestore {
     }
 
     function isAdmin() {
-      return signedIn() && request.auth.token.email == "mdefankhan56@gmail.com";
+      return signedIn()
+        && request.auth.token.email != null
+        && request.auth.token.email == "mdefankhan56@gmail.com";
     }
 
     function isOwner(uid) {
@@ -27,6 +29,8 @@ service cloud.firestore {
           "membershipTier",
           "membershipExpiresAt",
           "restricted",
+          "uid",
+          "email",
           "role"
         ])
       );

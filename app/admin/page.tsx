@@ -151,7 +151,12 @@ export default function AdminPage() {
         setCategories(snapshot.docs.map((item) => ({ id: item.id, ...item.data() }) as Category));
       }),
       onSnapshot(collection(db, "profiles"), (snapshot) => {
-        setProfiles(snapshot.docs.map((item) => ({ id: item.id, ...item.data() }) as unknown as UserProfile));
+        setProfiles(
+          snapshot.docs.map((item) => {
+            const data = item.data() as UserProfile;
+            return { ...data, uid: data.uid || item.id };
+          })
+        );
       }),
       onSnapshot(collection(db, "packages"), (snapshot) => {
         setPackages(snapshot.docs.map((item) => ({ id: item.id, ...item.data() }) as MembershipPackage));
@@ -190,7 +195,7 @@ export default function AdminPage() {
             <ShieldAlert className="mx-auto mb-4 h-12 w-12 text-matrix-pink" aria-hidden />
             <h1 className="text-3xl font-black text-white">Access denied</h1>
             <p className="mt-3 leading-7 text-white/68">
-              Admin access is only available for {ADMIN_EMAIL} after signing in with the Firebase admin password.
+              Admin access is only available after signing in with {ADMIN_EMAIL}.
             </p>
           </section>
         </main>
@@ -315,7 +320,7 @@ export default function AdminPage() {
   };
 
   const seedDefaultPackage = async () => {
-    await addDoc(collection(db, "packages"), {
+    await setDoc(doc(db, "packages", "premium-3-months-199-bdt"), {
       name: "3 Months for 199 BDT",
       tier: "premium",
       priceBdt: 199,
@@ -323,7 +328,7 @@ export default function AdminPage() {
       active: true,
       features: ["Premium tools", "3 months access", "Studio-ready packs"],
       createdAt: serverTimestamp()
-    });
+    }, { merge: true });
   };
 
   const saveNotification = async (event: FormEvent<HTMLFormElement>) => {
