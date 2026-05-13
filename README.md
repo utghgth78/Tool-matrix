@@ -16,6 +16,7 @@ Open `http://localhost:3000`.
 The project uses the Firebase configuration provided in the request. Enable these Firebase products in the Firebase Console:
 
 - Authentication with Email/Password provider
+- Authentication with Google provider for Gmail login
 - Firestore Database
 - Storage
 

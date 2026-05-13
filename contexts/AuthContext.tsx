@@ -3,8 +3,10 @@
 import {
   User,
   createUserWithEmailAndPassword,
+  GoogleAuthProvider,
   onAuthStateChanged,
   signInWithEmailAndPassword,
+  signInWithPopup,
   signOut,
   updateProfile
 } from "firebase/auth";
@@ -19,6 +21,7 @@ interface AuthContextValue {
   loading: boolean;
   isAdmin: boolean;
   signIn: (email: string, password: string) => Promise<void>;
+  signInWithGoogle: () => Promise<void>;
   signUp: (email: string, password: string, displayName: string) => Promise<void>;
   logout: () => Promise<void>;
   refreshProfile: () => Promise<void>;
@@ -109,6 +112,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       isAdmin: user?.email === ADMIN_EMAIL,
       signIn: async (email, password) => {
         await signInWithEmailAndPassword(auth, email.trim(), password);
+      },
+      signInWithGoogle: async () => {
+        const provider = new GoogleAuthProvider();
+        provider.setCustomParameters({ prompt: "select_account" });
+        await signInWithPopup(auth, provider);
       },
       signUp: async (email, password, displayName) => {
         const credential = await createUserWithEmailAndPassword(auth, email.trim(), password);

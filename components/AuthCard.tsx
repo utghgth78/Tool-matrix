@@ -1,7 +1,7 @@
 "use client";
 
 import { FormEvent, useState } from "react";
-import { LockKeyhole, Mail, Sparkles, UserRound } from "lucide-react";
+import { Chrome, LockKeyhole, Mail, Sparkles, UserRound } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { LanguageToggle } from "@/components/LanguageToggle";
@@ -12,7 +12,7 @@ interface AuthCardProps {
 }
 
 export function AuthCard({ adminMode = false }: AuthCardProps) {
-  const { signIn, signUp } = useAuth();
+  const { signIn, signInWithGoogle, signUp } = useAuth();
   const { t } = useLanguage();
   const [mode, setMode] = useState<"signin" | "signup">("signin");
   const [displayName, setDisplayName] = useState("");
@@ -34,6 +34,20 @@ export function AuthCard({ adminMode = false }: AuthCardProps) {
       }
     } catch (caught) {
       const message = caught instanceof Error ? caught.message : "Authentication failed";
+      setError(message.replace("Firebase: ", ""));
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const handleGoogleLogin = async () => {
+    setBusy(true);
+    setError("");
+
+    try {
+      await signInWithGoogle();
+    } catch (caught) {
+      const message = caught instanceof Error ? caught.message : "Google login failed";
       setError(message.replace("Firebase: ", ""));
     } finally {
       setBusy(false);
@@ -153,6 +167,17 @@ export function AuthCard({ adminMode = false }: AuthCardProps) {
 
             <NeonButton type="submit" disabled={busy} className="w-full py-3">
               {busy ? t.loading : mode === "signin" || adminMode ? t.signIn : t.signUp}
+            </NeonButton>
+
+            <div className="flex items-center gap-3">
+              <span className="h-px flex-1 bg-white/10" />
+              <span className="text-xs font-bold uppercase tracking-[0.2em] text-white/40">or</span>
+              <span className="h-px flex-1 bg-white/10" />
+            </div>
+
+            <NeonButton type="button" variant="ghost" disabled={busy} onClick={handleGoogleLogin} className="w-full py-3">
+              <Chrome className="h-4 w-4" aria-hidden />
+              Continue with Gmail
             </NeonButton>
           </div>
         </form>
