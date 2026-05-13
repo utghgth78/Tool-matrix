@@ -1,0 +1,66 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function signedIn() {
+      return request.auth != null;
+    }
+
+    function isAdmin() {
+      return signedIn() && request.auth.token.email == "mdefankhan56@gmail.com";
+    }
+
+    function isOwner(uid) {
+      return signedIn() && request.auth.uid == uid;
+    }
+
+    match /profiles/{uid} {
+      allow create: if isOwner(uid)
+        && request.resource.data.uid == uid
+        && request.resource.data.email == request.auth.token.email
+        && request.resource.data.membershipTier == "free"
+        && request.resource.data.restricted == false;
+      allow read: if isOwner(uid) || isAdmin();
+      allow update: if isAdmin() || (
+        isOwner(uid)
+        && !request.resource.data.diff(resource.data).affectedKeys().hasAny([
+          "membershipTier",
+          "membershipExpiresAt",
+          "restricted",
+          "role"
+        ])
+      );
+      allow delete: if isAdmin();
+    }
+
+    match /tools/{toolId} {
+      allow read: if signedIn();
+      allow create, delete: if isAdmin();
+      allow update: if isAdmin() || (
+        signedIn()
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(["usageCount"])
+        && request.resource.data.usageCount == resource.data.usageCount + 1
+      );
+    }
+
+    match /categories/{categoryId} {
+      allow read: if signedIn();
+      allow create, update, delete: if isAdmin();
+    }
+
+    match /packages/{packageId} {
+      allow read: if signedIn();
+      allow create, update, delete: if isAdmin();
+    }
+
+    match /notifications/{notificationId} {
+      allow read: if signedIn();
+      allow create, update, delete: if isAdmin();
+    }
+
+    match /settings/{settingId} {
+      allow read: if signedIn();
+      allow write: if isAdmin();
+    }
+  }
+}
