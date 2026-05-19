@@ -6,65 +6,84 @@ service cloud.firestore {
       return request.auth != null;
     }
 
-    function isAdmin() {
-      return signedIn()
-        && request.auth.token.email != null
-        && request.auth.token.email == "mdefankhan56@gmail.com";
+    function ownsUserDoc(userId) {
+      return signedIn() && request.auth.uid == userId;
     }
 
-    function isOwner(uid) {
-      return signedIn() && request.auth.uid == uid;
-    }
-
-    match /profiles/{uid} {
-      allow create: if isOwner(uid)
-        && request.resource.data.uid == uid
-        && request.resource.data.email == request.auth.token.email
-        && request.resource.data.membershipTier == "free"
-        && request.resource.data.restricted == false;
-      allow read: if isOwner(uid) || isAdmin();
-      allow update: if isAdmin() || (
-        isOwner(uid)
-        && !request.resource.data.diff(resource.data).affectedKeys().hasAny([
-          "membershipTier",
-          "membershipExpiresAt",
-          "restricted",
-          "uid",
+    match /users/{userId} {
+      allow read: if ownsUserDoc(userId);
+      allow create: if ownsUserDoc(userId)
+        && request.resource.data.keys().hasOnly([
+          "displayName",
           "email",
-          "role"
+          "photoURL",
+          "updatedAt"
+        ]);
+      allow update: if ownsUserDoc(userId)
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+          "displayName",
+          "email",
+          "photoURL",
+          "updatedAt"
+        ]);
+      allow delete: if false;
+
+      match /integrations/{integrationId} {
+        allow read: if false;
+        allow write: if false;
+      }
+    }
+
+    match /settings/{userId} {
+      allow read: if ownsUserDoc(userId);
+      allow create, update: if ownsUserDoc(userId)
+        && request.resource.data.userId == userId
+        && request.resource.data.keys().hasOnly([
+          "userId",
+          "uploadDelayMinutes",
+          "privacy",
+          "autoMetadata",
+          "autoPublish",
+          "updatedAt"
         ])
-      );
-      allow delete: if isAdmin();
+        && request.resource.data.uploadDelayMinutes is int
+        && request.resource.data.uploadDelayMinutes >= 0
+        && request.resource.data.uploadDelayMinutes <= 1440
+        && request.resource.data.privacy in ["public", "private", "unlisted"]
+        && request.resource.data.autoMetadata is bool
+        && request.resource.data.autoPublish is bool;
+      allow delete: if false;
     }
 
-    match /tools/{toolId} {
-      allow read: if signedIn();
-      allow create, delete: if isAdmin();
-      allow update: if isAdmin() || (
-        signedIn()
-        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(["usageCount"])
-        && request.resource.data.usageCount == resource.data.usageCount + 1
-      );
+    match /videos/{videoId} {
+      allow read: if signedIn() && resource.data.userId == request.auth.uid;
+      allow create: if signedIn()
+        && request.resource.data.userId == request.auth.uid
+        && request.resource.data.uploaded == false
+        && request.resource.data.status in ["pending", "scheduled"];
+      allow update: if signedIn()
+        && resource.data.userId == request.auth.uid
+        && request.resource.data.userId == request.auth.uid
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+          "title",
+          "metadata",
+          "scheduledAt",
+          "updatedAt"
+        ]);
+      allow delete: if signedIn() && resource.data.userId == request.auth.uid && resource.data.status != "uploading";
     }
 
-    match /categories/{categoryId} {
-      allow read: if signedIn();
-      allow create, update, delete: if isAdmin();
+    match /uploads/{uploadId} {
+      allow read: if signedIn() && resource.data.userId == request.auth.uid;
+      allow write: if false;
     }
 
-    match /packages/{packageId} {
-      allow read: if signedIn();
-      allow create, update, delete: if isAdmin();
+    match /rateLimits/{key} {
+      allow read, write: if false;
     }
 
-    match /notifications/{notificationId} {
-      allow read: if signedIn();
-      allow create, update, delete: if isAdmin();
-    }
-
-    match /settings/{settingId} {
-      allow read: if signedIn();
-      allow write: if isAdmin();
+    match /locks/{lockId} {
+      allow read, write: if false;
     }
   }
 }

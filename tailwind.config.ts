@@ -1,39 +1,57 @@
 import type { Config } from "tailwindcss";
 
 const config: Config = {
+  darkMode: ["class"],
   content: [
-    "./app/**/*.{js,ts,jsx,tsx,mdx}",
-    "./components/**/*.{js,ts,jsx,tsx,mdx}",
-    "./contexts/**/*.{js,ts,jsx,tsx,mdx}",
-    "./lib/**/*.{js,ts,jsx,tsx,mdx}"
+    "./src/pages/**/*.{js,ts,jsx,tsx,mdx}",
+    "./src/components/**/*.{js,ts,jsx,tsx,mdx}",
+    "./src/app/**/*.{js,ts,jsx,tsx,mdx}",
+    "./src/hooks/**/*.{js,ts,jsx,tsx,mdx}"
   ],
   theme: {
     extend: {
       colors: {
-        matrix: {
-          ink: "#07020f",
-          panel: "#12051f",
-          glass: "rgba(20, 8, 38, 0.72)",
-          pink: "#ff2ebd",
-          cyan: "#16f5ff",
-          purple: "#8b5cf6",
-          violet: "#4c1d95",
-          lime: "#a3ff12"
-        }
+        border: "hsl(var(--border))",
+        input: "hsl(var(--input))",
+        ring: "hsl(var(--ring))",
+        background: "hsl(var(--background))",
+        foreground: "hsl(var(--foreground))",
+        muted: {
+          DEFAULT: "hsl(var(--muted))",
+          foreground: "hsl(var(--muted-foreground))"
+        },
+        card: {
+          DEFAULT: "hsl(var(--card))",
+          foreground: "hsl(var(--card-foreground))"
+        },
+        accent: {
+          DEFAULT: "hsl(var(--accent))",
+          foreground: "hsl(var(--accent-foreground))"
+        },
+        primary: {
+          DEFAULT: "hsl(var(--primary))",
+          foreground: "hsl(var(--primary-foreground))"
+        },
+        success: "hsl(var(--success))",
+        warning: "hsl(var(--warning))",
+        danger: "hsl(var(--danger))"
       },
       boxShadow: {
-        neon: "0 0 22px rgba(255, 46, 189, 0.35), 0 0 44px rgba(22, 245, 255, 0.18)",
-        cyan: "0 0 24px rgba(22, 245, 255, 0.25)",
-        pink: "0 0 26px rgba(255, 46, 189, 0.30)"
+        glow: "0 24px 80px rgba(14, 165, 233, 0.16)"
       },
-      backgroundImage: {
-        "matrix-radial":
-          "radial-gradient(circle at 20% 10%, rgba(255,46,189,0.22), transparent 28%), radial-gradient(circle at 80% 20%, rgba(22,245,255,0.16), transparent 24%), linear-gradient(135deg, #07020f 0%, #12051f 45%, #21083d 100%)",
-        "grid-lines":
-          "linear-gradient(rgba(255,255,255,0.04) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.04) 1px, transparent 1px)"
+      animation: {
+        "fade-up": "fadeUp 0.35s ease-out both",
+        pulseSoft: "pulseSoft 1.8s ease-in-out infinite"
       },
-      fontFamily: {
-        display: ["var(--font-geist-sans)", "Inter", "system-ui", "sans-serif"]
+      keyframes: {
+        fadeUp: {
+          "0%": { opacity: "0", transform: "translateY(12px)" },
+          "100%": { opacity: "1", transform: "translateY(0)" }
+        },
+        pulseSoft: {
+          "0%, 100%": { opacity: "1" },
+          "50%": { opacity: "0.55" }
+        }
       }
     }
   },
